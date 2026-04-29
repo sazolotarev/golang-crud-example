@@ -16,6 +16,23 @@ type Employee struct {
 	Position string
 }
 
+const initQueries = `
+CREATE TABLE IF NOT EXISTS employees (
+	id SERIAL,
+	name VARCHAR UNIQUE,
+	age SMALLINT,
+	position VARCHAR
+);
+INSERT INTO employees (name, age, position)
+VALUES
+	('Иван', 40, 'старший инженер-программист'),
+	('Петр', 30, 'инженер-программист'),
+	('Анастасия', 25, 'дизайнер'),
+	('Николай', 35, 'менеджер'),
+	('Семён', 45, 'директор')
+ON CONFLICT DO NOTHING;
+`
+
 func (dao *DAO) Init() {
 	log.Println("Initializing DB")
 
@@ -29,31 +46,16 @@ func (dao *DAO) Init() {
 		log.Fatal(err)
 	}
 
+	_, err = db.Exec(initQueries)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	dao.db = db
-	dao.createTables()
 }
 
 func (dao *DAO) Deinit() {
 	dao.db.Close()
-}
-
-func (dao *DAO) createTables() {
-	dao.db.Exec(`
-CREATE TABLE IF NOT EXISTS employees (
-	id SERIAL,
-	name VARCHAR UNIQUE,
-	age SMALLINT,
-	position VARCHAR
-)`)
-	dao.db.Exec(`
-INSERT INTO employees (name, age, position)
-VALUES
-	('Иван', 40, 'старший инженер-программист'),
-	('Петр', 30, 'инженер-программист'),
-	('Анастасия', 25, 'дизайнер'),
-	('Николай', 35, 'менеджер'),
-	('Семён', 45, 'директор')
-ON CONFLICT DO NOTHING`)
 }
 
 func (dao *DAO) EmployeeExists(name string) (bool, error) {
@@ -74,16 +76,16 @@ func (dao *DAO) GetEmployees() ([]Employee, error) {
 		return nil, err
 	}
 
-	result := []Employee{}
+	employees := []Employee{}
 	for rows.Next() {
 		employee := Employee{}
 		err = rows.Scan(&employee.ID, &employee.Name, &employee.Age, &employee.Position)
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, employee)
+		employees = append(employees, employee)
 	}
-	return result, nil
+	return employees, nil
 }
 
 func (dao *DAO) GetEmployeeByID(id int) (*Employee, error) {
