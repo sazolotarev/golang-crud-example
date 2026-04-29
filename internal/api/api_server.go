@@ -94,7 +94,14 @@ func (s *APIServer) handlePostEmployee(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&reqData)
 	if err != nil {
 		log.Printf("handleEmployee: error in decode: %v", err)
-		s.handleError(w, r, http.StatusInternalServerError, "Failed to save employee")
+		s.handleError(w, r, http.StatusBadRequest, "Invalid employee data")
+		return
+	}
+
+	err = reqData.validate()
+	if err != nil {
+		log.Printf("handleEmployee: validation error: %v", err)
+		s.handleError(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -105,7 +112,7 @@ func (s *APIServer) handlePostEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if exists {
-		s.handleError(w, r, http.StatusConflict, "Employee with this name already exists")
+		s.handleError(w, r, http.StatusConflict, "Employee with such name already exists")
 		return
 	}
 
@@ -141,7 +148,7 @@ func (s *APIServer) handleGetEmployee(w http.ResponseWriter, r *http.Request) {
 	employee, err := s.dao.GetEmployeeByID(id)
 	if err != nil {
 		log.Printf("handleGetEmployee: error in get call: %v", err)
-		s.handleError(w, r, http.StatusInternalServerError, "Could not fetch this employee")
+		s.handleError(w, r, http.StatusInternalServerError, "Could not fetch employee")
 		return
 	}
 	if employee == nil {
