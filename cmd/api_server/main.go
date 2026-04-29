@@ -1,8 +1,8 @@
 package main
 
 import (
-	"example.com/crud-example/api"
-	"example.com/crud-example/dao"
+	"example.com/crud-example/internal/api"
+	"example.com/crud-example/internal/dao"
 )
 
 func main() {

@@ -5,20 +5,19 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 
-COPY main.go ./
-COPY api ./api
-COPY dao ./dao
+COPY cmd ./cmd
+COPY internal ./internal
 
-RUN go build -o /crud-example
+RUN go build -o /api_server ./cmd/api_server
 
 FROM gcr.io/distroless/base-debian13
 
 WORKDIR /
 
-COPY --from=build /crud-example /crud-example
+COPY --from=build /api_server /api_server
 
 EXPOSE 8080
 
 USER nonroot:nonroot
 
-CMD ["/crud-example"]
+CMD ["/api_server"]

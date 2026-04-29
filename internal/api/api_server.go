@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"example.com/crud-example/dao"
+	"example.com/crud-example/internal/dao"
 	_ "github.com/lib/pq"
 )
 
