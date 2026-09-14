@@ -7,12 +7,13 @@ import (
 	"net/http"
 	"strconv"
 
-	"example.com/crud-example/internal/dao"
+	"example.com/crud-example/internal/data"
 	_ "github.com/lib/pq"
 )
 
 type APIServer struct {
-	dao *dao.DAO
+	serverAddress      string
+	employeeRepository *data.EmployeeRepository
 }
 
 type apiError struct {
@@ -39,20 +40,20 @@ type employeeListItem struct {
 	Position string `json:"position"`
 }
 
-func NewAPIServer(dao *dao.DAO) APIServer {
+func NewAPIServer(serverAddress string, employeeRepository *data.EmployeeRepository) APIServer {
 	return APIServer{
-		dao: dao,
+		serverAddress:      serverAddress,
+		employeeRepository: employeeRepository,
 	}
 }
 
 func (s *APIServer) Run() {
-	const serverAddress = ":8080"
-	log.Println("Starting server on " + serverAddress)
+	log.Println("Starting API server on " + s.serverAddress)
 
 	http.HandleFunc("/employees", s.handleEmployees)
 	http.HandleFunc("/employees/{id}", s.handleGetEmployee)
 
-	err := http.ListenAndServe(serverAddress, nil)
+	err := http.ListenAndServe(s.serverAddress, nil)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -70,7 +71,7 @@ func (s *APIServer) handleEmployees(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) handleGetEmployees(w http.ResponseWriter, r *http.Request) {
-	employees, err := s.dao.GetEmployees()
+	employees, err := s.employeeRepository.GetEmployees()
 	if err != nil {
 		log.Printf("handleEmployees: error in get call: %v", err)
 		s.handleError(w, r, http.StatusInternalServerError, "Could not fetch employees")
@@ -105,7 +106,7 @@ func (s *APIServer) handlePostEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exists, err := s.dao.EmployeeExists(reqData.Name)
+	exists, err := s.employeeRepository.EmployeeExists(reqData.Name)
 	if err != nil {
 		log.Printf("handleEmployee: error in exists check: %v", err)
 		s.handleError(w, r, http.StatusInternalServerError, "Failed to save employee")
@@ -116,12 +117,12 @@ func (s *APIServer) handlePostEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	employee := dao.Employee{
+	employee := data.Employee{
 		Name:     reqData.Name,
 		Age:      reqData.Age,
 		Position: reqData.Position,
 	}
-	employeeID, err := s.dao.SaveEmployee(employee)
+	employeeID, err := s.employeeRepository.SaveEmployee(employee)
 	if err != nil {
 		log.Printf("handleEmployee: error in save call: %v", err)
 		s.handleError(w, r, http.StatusInternalServerError, "Failed to save employee")
@@ -145,7 +146,7 @@ func (s *APIServer) handleGetEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	employee, err := s.dao.GetEmployeeByID(id)
+	employee, err := s.employeeRepository.GetEmployeeByID(id)
 	if err != nil {
 		log.Printf("handleGetEmployee: error in get call: %v", err)
 		s.handleError(w, r, http.StatusInternalServerError, "Could not fetch employee")
