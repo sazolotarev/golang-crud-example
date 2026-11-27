@@ -8,58 +8,26 @@ import (
 	"strconv"
 
 	"example.com/crud-example/internal/data"
-	_ "github.com/lib/pq"
 )
 
-type APIServer struct {
-	serverAddress      string
-	employeeRepository *data.EmployeeRepository
+type APIHandler struct {
+	employeeRepository data.EmployeeRepository
 }
 
-type apiError struct {
-	Error string `json:"error"`
-}
-
-type createEmployeeRequest struct {
-	Name     string `json:"name"`
-	Age      int    `json:"age"`
-	Position string `json:"position"`
-}
-
-type employeeResponse struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Age      int    `json:"age"`
-	Position string `json:"position"`
-}
-
-type employeeListItem struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	Age      int    `json:"age"`
-	Position string `json:"position"`
-}
-
-func NewAPIServer(serverAddress string, employeeRepository *data.EmployeeRepository) APIServer {
-	return APIServer{
-		serverAddress:      serverAddress,
+func NewAPIHandler(employeeRepository data.EmployeeRepository) *APIHandler {
+	return &APIHandler{
 		employeeRepository: employeeRepository,
 	}
 }
 
-func (s *APIServer) Run() {
-	log.Println("Starting API server on " + s.serverAddress)
-
-	http.HandleFunc("/employees", s.handleEmployees)
-	http.HandleFunc("/employees/{id}", s.handleGetEmployee)
-
-	err := http.ListenAndServe(s.serverAddress, nil)
-	if err != nil {
-		log.Fatal(err)
-	}
+func (s *APIHandler) Handler() http.Handler {
+	serveMux := &http.ServeMux{}
+	serveMux.HandleFunc("/employees", s.handleEmployees)
+	serveMux.HandleFunc("/employees/{id}", s.handleGetEmployee)
+	return serveMux
 }
 
-func (s *APIServer) handleEmployees(w http.ResponseWriter, r *http.Request) {
+func (s *APIHandler) handleEmployees(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		s.handleGetEmployees(w, r)
@@ -70,7 +38,7 @@ func (s *APIServer) handleEmployees(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (s *APIServer) handleGetEmployees(w http.ResponseWriter, r *http.Request) {
+func (s *APIHandler) handleGetEmployees(w http.ResponseWriter, r *http.Request) {
 	employees, err := s.employeeRepository.GetEmployees()
 	if err != nil {
 		log.Printf("handleEmployees: error in get call: %v", err)
@@ -78,19 +46,19 @@ func (s *APIServer) handleGetEmployees(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resData := []employeeListItem{}
+	respData := []employeeListItem{}
 	for _, employee := range employees {
-		resData = append(resData, employeeListItem{
+		respData = append(respData, employeeListItem{
 			ID:       strconv.Itoa(employee.ID),
 			Name:     employee.Name,
 			Age:      employee.Age,
 			Position: employee.Position,
 		})
 	}
-	s.writeSuccessJSON(w, resData)
+	s.writeSuccessJSON(w, respData)
 }
 
-func (s *APIServer) handlePostEmployee(w http.ResponseWriter, r *http.Request) {
+func (s *APIHandler) handlePostEmployee(w http.ResponseWriter, r *http.Request) {
 	reqData := createEmployeeRequest{}
 	err := json.NewDecoder(r.Body).Decode(&reqData)
 	if err != nil {
@@ -129,16 +97,16 @@ func (s *APIServer) handlePostEmployee(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resData := employeeResponse{
+	respData := employeeResponse{
 		ID:       strconv.Itoa(employeeID),
 		Name:     employee.Name,
 		Age:      employee.Age,
 		Position: employee.Position,
 	}
-	s.writeSuccessJSON(w, resData)
+	s.writeSuccessJSON(w, respData)
 }
 
-func (s *APIServer) handleGetEmployee(w http.ResponseWriter, r *http.Request) {
+func (s *APIHandler) handleGetEmployee(w http.ResponseWriter, r *http.Request) {
 	idString := r.PathValue("id")
 	id, err := strconv.Atoi(idString)
 	if err != nil {
@@ -166,17 +134,17 @@ func (s *APIServer) handleGetEmployee(w http.ResponseWriter, r *http.Request) {
 	s.writeSuccessJSON(w, resData)
 }
 
-func (s *APIServer) handleError(w http.ResponseWriter, r *http.Request, statusCode int, msg string) {
+func (s *APIHandler) handleError(w http.ResponseWriter, r *http.Request, statusCode int, msg string) {
 	log.Printf("Error in API endpoint: path=%v, statusCode=%d, msg=%v\n", r.URL.Path, statusCode, msg)
 
 	s.writeJSON(w, statusCode, apiError{Error: msg})
 }
 
-func (s *APIServer) writeSuccessJSON(w http.ResponseWriter, v any) error {
+func (s *APIHandler) writeSuccessJSON(w http.ResponseWriter, v any) error {
 	return s.writeJSON(w, 200, v)
 }
 
-func (s *APIServer) writeJSON(w http.ResponseWriter, statusCode int, v any) error {
+func (s *APIHandler) writeJSON(w http.ResponseWriter, statusCode int, v any) error {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 
